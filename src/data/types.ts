@@ -83,6 +83,11 @@ export interface IRecordItem {
   /** 食用克数 */
   grams: number;
   meal: MealType;
+  /** 每 100 克营养快照：记录时留存，食物库变更或自定义食物查找不到时统计依然准确 */
+  kcal100?: number;
+  protein100?: number;
+  fat100?: number;
+  carbs100?: number;
 }
 
 export interface IRecordDay {

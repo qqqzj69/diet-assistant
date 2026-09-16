@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import RatingStars from '@/components/RatingStars';
 import FoodDetailDialog from '@/components/FoodDetailDialog';
+import AddCustomFoodDialog from '@/components/AddCustomFoodDialog';
 import { FOODS, CATEGORY_META } from '@/data/foods';
 import type { FoodCategory, IFood, MealType } from '@/data/types';
 import { FOOD_CATEGORY_OPTIONS } from '@/data/types';
 import { useRecords } from '@/hooks/use-records';
+import { useCustomFoods } from '@/hooks/use-custom-foods';
 
 const TODAY = format(new Date(), 'yyyy-MM-dd');
 
@@ -33,19 +35,37 @@ const genId = () => {
 };
 
 export default function FoodsPage() {
-  const { addItem } = useRecords();
+  const { addItem, records } = useRecords();
+  const { customFoods, addCustomFood } = useCustomFoods();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<FoodCategory | '全部'>('全部');
   const [selected, setSelected] = useState<IFood | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+
+  /** 统计每个食物被记录过的次数，用于把常用食物排在前面 */
+  const recordCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    records.forEach((r) =>
+      r.items.forEach((i) => m.set(i.foodId, (m.get(i.foodId) ?? 0) + 1))
+    );
+    return m;
+  }, [records]);
+
+  const allFoods = useMemo(() => {
+    const sortedBuiltin = [...FOODS].sort(
+      (a, b) => (recordCounts.get(b.id) ?? 0) - (recordCounts.get(a.id) ?? 0)
+    );
+    return [...customFoods, ...sortedBuiltin];
+  }, [customFoods, recordCounts]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return FOODS.filter((x) => {
+    return allFoods.filter((x) => {
       const hitCategory = category === '全部' || x.category === category;
       const hitQuery = !q || x.name.toLowerCase().includes(q);
       return hitCategory && hitQuery;
     });
-  }, [query, category]);
+  }, [query, category, allFoods]);
 
   const handleAdd = (food: IFood, grams: number, meal: MealType) => {
     addItem(TODAY, {
@@ -54,17 +74,27 @@ export default function FoodsPage() {
       foodName: food.name,
       grams,
       meal,
+      kcal100: food.kcal,
+      protein100: food.protein,
+      fat100: food.fat,
+      carbs100: food.carbs,
     });
     toast.success(`已记录：${food.name} ${grams}g（${meal}）`);
   };
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">食物库</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          内置 {FOODS.length} 种常见食物，查看热量、营养和减脂优缺点
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">食物库</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            内置 {FOODS.length} 种常见食物 + {customFoods.length} 个自定义，查看热量、营养和减脂优缺点
+          </p>
+        </div>
+        <Button onClick={() => setCustomOpen(true)}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          自定义食物
+        </Button>
       </div>
 
       <div className="relative max-w-xl">
@@ -118,9 +148,14 @@ export default function FoodsPage() {
                     {food.kcal} 千卡/100g
                   </p>
                 </div>
-                <Badge className={CATEGORY_STYLE[food.category]} variant="outline">
-                  {food.category}
-                </Badge>
+                <div className="flex shrink-0 gap-1">
+                  {food.id.startsWith('custom-') && (
+                    <Badge variant="secondary">自定义</Badge>
+                  )}
+                  <Badge className={CATEGORY_STYLE[food.category]} variant="outline">
+                    {food.category}
+                  </Badge>
+                </div>
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <RatingStars rating={food.rating} />
@@ -135,7 +170,9 @@ export default function FoodsPage() {
 
       {results.length === 0 && (
         <p className="py-16 text-center text-sm text-muted-foreground">
-          没有找到「{query}」，换个关键词试试
+          {query || category !== '全部'
+            ? `没有找到「${query || category}」，换个关键词试试，或点右上角自定义添加`
+            : '食物库还没有内容，点右上角「自定义食物」添加'}
         </p>
       )}
 
@@ -147,6 +184,15 @@ export default function FoodsPage() {
         }}
         onAdd={(grams, meal) => {
           if (selected) handleAdd(selected, grams, meal);
+        }}
+      />
+
+      <AddCustomFoodDialog
+        open={customOpen}
+        onOpenChange={setCustomOpen}
+        onConfirm={(input) => {
+          addCustomFood(input);
+          toast.success(`已添加自定义食物：${input.name}`);
         }}
       />
     </div>

@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ArrowRight, CalendarDays, Moon, Sun, UtensilsCrossed } from 'lucide-react';
+import { ArrowRight, CalendarDays, Moon, Plus, Sun, UtensilsCrossed } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import NutritionProgress from '@/components/NutritionProgress';
 import MascotImage from '@/components/MascotImage';
+import MascotPickerDialog from '@/components/MascotPickerDialog';
+import AddFoodDialog from '@/components/AddFoodDialog';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useProfile } from '@/hooks/use-profile';
 import { useRecords } from '@/hooks/use-records';
+import { useMascot } from '@/hooks/use-mascot';
 import { MEAL_OPTIONS } from '@/data/types';
 import type { IRecordItem } from '@/data/types';
-import { sumRecordItems, calcCalorieTarget, calcMacroTargets } from '@/lib/nutrition';
-import { foodById } from '@/data/foods';
+import { sumRecordItems, nutrientsOfRecord, calcCalorieTarget, calcMacroTargets } from '@/lib/nutrition';
 
 const TODAY = format(new Date(), 'yyyy-MM-dd');
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -22,6 +25,12 @@ const CHART_ORANGE = '#E8892D';
 const CHART_BLUE = '#4A7FB5';
 const CHART_GOLD = '#D9A441';
 const CHART_TRACK = '#DFEEEC';
+
+let seq = 0;
+const genId = () => {
+  seq += 1;
+  return `${Date.now()}-${seq}`;
+};
 
 const greetingOf = (hour: number): string => {
   if (hour >= 5 && hour < 11) return '早上好';
@@ -36,7 +45,10 @@ const shapeLabelOf = (bmi: number): string =>
 
 export default function DashboardPage() {
   const { profile } = useProfile();
-  const { dayRecords } = useRecords();
+  const { dayRecords, addItem } = useRecords();
+  const { gender, setGender } = useMascot();
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [now] = useState(() => new Date());
   const hour = now.getHours();
 
@@ -51,6 +63,7 @@ export default function DashboardPage() {
   const fullness = target && target > 0 ? totals.kcal / target : null;
 
   const bmi = profile ? profile.weight / (profile.height / 100) ** 2 : 22;
+
   const statusText = !profile
     ? '设置方案后，小人会随你的身高体重和饮食变化'
     : fullness === null
@@ -85,17 +98,31 @@ export default function DashboardPage() {
           </p>
           <h1 className="mt-1 text-2xl font-bold">今日概况</h1>
         </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+          <Button
+            onClick={() => setQuickOpen(true)}
+            className="h-11 w-full justify-center text-base sm:h-9 sm:w-auto sm:text-sm"
+          >
+            <Plus className="mr-1.5 h-5 w-5 sm:h-4 sm:w-4" />
+            快速记录
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="h-11 w-full justify-center text-base sm:h-9 sm:w-auto sm:text-sm"
+          >
             <Link to="/records">
-              <UtensilsCrossed className="mr-1.5 h-4 w-4" />
+              <UtensilsCrossed className="mr-1.5 h-5 w-5 sm:h-4 sm:w-4" />
               记录饮食
             </Link>
           </Button>
-          <Button asChild>
+          <Button
+            asChild
+            className="h-11 w-full justify-center text-base sm:h-9 sm:w-auto sm:text-sm"
+          >
             <Link to="/foods">
               查食物热量
-              <ArrowRight className="ml-1.5 h-4 w-4" />
+              <ArrowRight className="ml-1.5 h-5 w-5 sm:h-4 sm:w-4" />
             </Link>
           </Button>
         </div>
@@ -129,11 +156,22 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          <MascotImage
-            fullness={fullness ?? 0.5}
-            hour={hour}
-            className="h-44 w-auto shrink-0 object-contain drop-shadow-sm"
-          />
+          <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <MascotImage
+              gender={gender ?? 'male'}
+              fullness={fullness ?? 0.5}
+              hour={hour}
+              className="h-44 w-auto object-contain drop-shadow-sm"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground"
+              onClick={() => setPickerOpen(true)}
+            >
+              换形象
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -276,14 +314,14 @@ export default function DashboardPage() {
               ) : (
                 <ul className="space-y-2">
                   {day.items.slice(0, 8).map((item) => {
-                    const food = foodById(item.foodId);
+                    const n = nutrientsOfRecord(item);
                     return (
                       <li key={item.id} className="flex items-center justify-between text-sm">
                         <span className="truncate">
                           {item.foodName}
                           <span className="ml-1.5 text-xs text-muted-foreground">{item.grams}g</span>
                         </span>
-                        <span className="ml-2 shrink-0 font-medium">{food ? Math.round((food.kcal * item.grams) / 100) : 0} 千卡</span>
+                        <span className="ml-2 shrink-0 font-medium">{n ? n.kcal : 0} 千卡</span>
                       </li>
                     );
                   })}
@@ -293,6 +331,37 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* 首次进入或点击换形象：选择小人形象 */}
+      {(!gender || pickerOpen) && (
+        <MascotPickerDialog
+          open
+          onPick={(g) => {
+            setGender(g);
+            setPickerOpen(false);
+          }}
+        />
+      )}
+
+      {/* 首页快速记录 */}
+      <AddFoodDialog
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+        onConfirm={(food, grams, meal) => {
+          addItem(TODAY, {
+            id: genId(),
+            foodId: food.id,
+            foodName: food.name,
+            grams,
+            meal,
+            kcal100: food.kcal,
+            protein100: food.protein,
+            fat100: food.fat,
+            carbs100: food.carbs,
+          });
+          toast.success(`已记录：${food.name} ${grams}g（${meal}）`);
+        }}
+      />
     </div>
   );
 }

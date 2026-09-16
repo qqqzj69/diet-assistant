@@ -12,8 +12,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { useRecords } from '@/hooks/use-records';
 import { MEAL_OPTIONS } from '@/data/types';
 import type { IFood, IRecordItem, MealType } from '@/data/types';
-import { foodById } from '@/data/foods';
-import { sumRecordItems, calcCalorieTarget, calcMacroTargets } from '@/lib/nutrition';
+import { sumRecordItems, nutrientsOfRecord, calcCalorieTarget, calcMacroTargets } from '@/lib/nutrition';
 
 const TODAY = format(new Date(), 'yyyy-MM-dd');
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -74,6 +73,10 @@ export default function RecordsPage() {
       foodName: food.name,
       grams,
       meal,
+      kcal100: food.kcal,
+      protein100: food.protein,
+      fat100: food.fat,
+      carbs100: food.carbs,
     });
     toast.success(`已记录：${food.name} ${grams}g（${meal}）`);
   };
@@ -211,15 +214,15 @@ export default function RecordsPage() {
                 ) : (
                   <ul className="divide-y">
                     {items.map((item) => {
-                      const food = foodById(item.foodId);
-                      const kcal = food ? Math.round((food.kcal * item.grams) / 100) : 0;
+                      const n = nutrientsOfRecord(item);
+                      const kcal = n ? n.kcal : 0;
                       return (
                         <li key={item.id} className="group flex items-center justify-between gap-2 py-2">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">{item.foodName}</p>
                             <p className="text-xs text-muted-foreground">
-                              {item.grams}g · 蛋白 {food ? Math.round((food.protein * item.grams) / 100) : 0}g · 脂{' '}
-                              {food ? Math.round((food.fat * item.grams) / 100) : 0}g
+                              {item.grams}g · 蛋白 {n ? n.protein : 0}g · 脂{' '}
+                              {n ? n.fat : 0}g
                             </p>
                           </div>
                           <div className="flex shrink-0 items-center gap-1">

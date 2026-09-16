@@ -2,3 +2,81 @@
 @import "tw-animate-css";
 @import "./tailwind-theme.css";
 @import "./typography.css";
+
+/* ---------- 质感：背景层次 ---------- */
+body {
+  background-image:
+    radial-gradient(1200px 620px at 50% -12%, hsl(174 70% 90% / 0.75), transparent 62%),
+    radial-gradient(900px 480px at 108% 108%, hsl(160 55% 88% / 0.45), transparent 60%),
+    linear-gradient(180deg, hsl(168 38% 96.5%) 0%, var(--background) 42%);
+  background-attachment: fixed;
+}
+
+/* ---------- 质感 + 动效：卡片 ---------- */
+:where(.rounded-xl.border.bg-card) {
+  transition:
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.25s ease;
+}
+:where(.rounded-xl.border.bg-card):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: hsl(174 42% 82%);
+}
+
+/* ---------- 动效：角色状态切换淡入 ---------- */
+@keyframes mascot-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- 动效：页面入场 ---------- */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.page-enter {
+  animation: page-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ---------- 质感：细滚动条 ---------- */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: hsl(174 38% 82%);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: hsl(174 38% 72%);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 无障碍：尊重减弱动效偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+  :where(.rounded-xl.border.bg-card) {
+    transition: none;
+  }
+  :where(.rounded-xl.border.bg-card):hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--card-border);
+  }
+}

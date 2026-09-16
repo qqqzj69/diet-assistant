@@ -33,7 +33,7 @@ export default function AppSidebar() {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">轻食计</p>
-            <p className="truncate text-xs text-muted-foreground">减肥饮食助手</p>
+            <p className="truncate text-xs text-sidebar-foreground/60">减肥饮食助手</p>
           </div>
         </div>
       </SidebarHeader>
@@ -61,7 +61,7 @@ export default function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <p className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">
+        <p className="px-2 py-2 text-xs leading-relaxed text-sidebar-foreground/50">
           数据仅保存在本机浏览器
         </p>
       </SidebarFooter>

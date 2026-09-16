@@ -118,5 +118,12 @@ export default defineConfig(({ command }) => ({
   server: {
     // 监听局域网，允许同一 Wi-Fi 下的手机访问（npm run dev 时生效）
     host: true,
+    // 本地 AI 后端代理：前端统一请求 /api，转发到 server.js
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
+    },
   },
 }));

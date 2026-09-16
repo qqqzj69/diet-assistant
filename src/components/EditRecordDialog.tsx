@@ -20,7 +20,7 @@ import {
 import type { IRecordItem, MealType } from '@/data/types';
 import { MEAL_OPTIONS } from '@/data/types';
 import { foodById } from '@/data/foods';
-import { nutrientsFor } from '@/lib/nutrition';
+import { nutrientsFor, nutrientsOfRecord } from '@/lib/nutrition';
 
 interface EditRecordDialogProps {
   open: boolean;
@@ -40,7 +40,12 @@ export default function EditRecordDialog({
   const [meal, setMeal] = useState<MealType>(item?.meal ?? '早餐');
 
   const food = item ? foodById(item.foodId) : undefined;
-  const n = food ? nutrientsFor(food, grams) : null;
+  // 预览营养：优先用记录快照（自定义/AI 食物也能算），缺失时按食物库兜底
+  const n = item
+    ? nutrientsOfRecord({ ...item, grams })
+    : food
+      ? nutrientsFor(food, grams)
+      : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -49,7 +54,7 @@ export default function EditRecordDialog({
           <DialogTitle>修改记录</DialogTitle>
           <DialogDescription>
             {item?.foodName}
-            {food ? ` · ${food.kcal} 千卡/100g` : ''}
+            {food ? ` · ${food.kcal} 千卡/100g` : n ? ` · 约 ${n.kcal} 千卡/100g` : ''}
           </DialogDescription>
         </DialogHeader>
 

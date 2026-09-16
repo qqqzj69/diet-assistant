@@ -40,14 +40,15 @@
   --chart-3: hsl(200 30% 51%);
   --chart-4: hsl(41 54% 54%);
   --chart-5: hsl(8 46% 61%);
-  --sidebar: hsl(168 30% 96%);
-  --sidebar-foreground: hsl(175 30% 20%);
-  --sidebar-primary: hsl(177 85% 34%);
+  /* 深色侧边栏（配合珠光深色背景） */
+  --sidebar: hsl(175 45% 9%);
+  --sidebar-foreground: hsl(172 24% 84%);
+  --sidebar-primary: hsl(174 70% 55%);
   --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(168 35% 90%);
-  --sidebar-accent-foreground: hsl(177 60% 25%);
-  --sidebar-border: hsl(170 22% 89%);
-  --sidebar-ring: hsl(177 85% 34%);
+  --sidebar-accent: hsl(175 36% 17%);
+  --sidebar-accent-foreground: hsl(174 80% 82%);
+  --sidebar-border: hsl(175 30% 15%);
+  --sidebar-ring: hsl(174 70% 55%);
 
   /* Computed borders using hsl relative color syntax */
   --primary-border: hsl(from hsl(177 85% 34%) h s calc(l + var(--opaque-button-border-intensity)));
@@ -71,19 +72,19 @@
   --shadow-spread: 0px;
   --shadow-opacity: 0.02;
   --shadow-color: #000000;
-  --shadow-2xs: 0px 2px 12px 0px hsl(0 0% 0% / 0.01);
-  --shadow-xs: 0px 2px 12px 0px hsl(0 0% 0% / 0.01);
+  --shadow-2xs: 0px 1px 2px -1px hsl(178 40% 30% / 0.05);
+  --shadow-xs: 0px 1px 3px 0px hsl(178 40% 30% / 0.06);
   --shadow-sm:
-    0px 2px 12px 0px hsl(0 0% 0% / 0.02), 0px 1px 2px -1px hsl(0 0% 0% / 0.02);
+    0px 2px 8px -2px hsl(178 40% 30% / 0.09), 0px 1px 2px -1px hsl(0 0% 0% / 0.04);
   --shadow:
-    0px 2px 12px 0px hsl(0 0% 0% / 0.02), 0px 1px 2px -1px hsl(0 0% 0% / 0.02);
+    0px 2px 10px -2px hsl(178 40% 30% / 0.10), 0px 1px 3px -1px hsl(0 0% 0% / 0.05);
   --shadow-md:
-    0px 2px 12px 0px hsl(0 0% 0% / 0.02), 0px 2px 4px -1px hsl(0 0% 0% / 0.02);
+    0px 4px 16px -4px hsl(178 40% 30% / 0.13), 0px 2px 4px -2px hsl(0 0% 0% / 0.05);
   --shadow-lg:
-    0px 2px 12px 0px hsl(0 0% 0% / 0.02), 0px 4px 6px -1px hsl(0 0% 0% / 0.02);
+    0px 8px 24px -6px hsl(178 40% 30% / 0.15), 0px 4px 6px -2px hsl(0 0% 0% / 0.05);
   --shadow-xl:
-    0px 2px 12px 0px hsl(0 0% 0% / 0.02), 0px 8px 10px -1px hsl(0 0% 0% / 0.02);
-  --shadow-2xl: 0px 2px 12px 0px hsl(0 0% 0% / 0.05);
+    0px 12px 32px -8px hsl(178 40% 30% / 0.17), 0px 6px 10px -4px hsl(0 0% 0% / 0.06);
+  --shadow-2xl: 0px 16px 44px -10px hsl(178 40% 30% / 0.19);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
@@ -146,6 +147,9 @@
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
+
+  --default-transition-duration: 220ms;
+  --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /**

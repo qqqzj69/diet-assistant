@@ -25,6 +25,7 @@ import { FOODS } from '@/data/foods';
 import type { IFood, MealType } from '@/data/types';
 import { MEAL_OPTIONS } from '@/data/types';
 import { nutrientsFor } from '@/lib/nutrition';
+import { useCustomFoods } from '@/hooks/use-custom-foods';
 
 interface AddFoodDialogProps {
   open: boolean;
@@ -45,14 +46,14 @@ export default function AddFoodDialog({
   const [selected, setSelected] = useState<IFood | null>(null);
   const [grams, setGrams] = useState(100);
   const [meal, setMeal] = useState<MealType>(defaultMeal);
+  const { customFoods } = useCustomFoods();
 
   const results = useMemo(() => {
+    const all = [...customFoods, ...FOODS];
     const q = query.trim().toLowerCase();
-    if (!q) return FOODS.slice(0, 30);
-    return FOODS.filter(
-      (x) => x.name.includes(q) || x.category.includes(q)
-    ).slice(0, 30);
-  }, [query]);
+    if (!q) return all.slice(0, 30);
+    return all.filter((x) => x.name.includes(q) || x.category.includes(q)).slice(0, 30);
+  }, [query, customFoods]);
 
   const close = () => {
     setQuery('');

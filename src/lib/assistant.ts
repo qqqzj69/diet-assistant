@@ -1,6 +1,7 @@
 // 本地智能问答引擎：基于内置食物库、用户档案与今日记录做规则式回答。
 // 覆盖：食物热量查询、食物对比、个性化推荐、今日状态总结、减脂知识、运动消耗、营养补充。
-// 说明：这是本地规则引擎（离线可用、数据来自本应用），不是云端大模型。
+// 说明：本地规则引擎（离线可用、数据来自本应用）答不上的问题，会交给本地 AI 代理
+// （server.js → DeepSeek API）联网回答；AI 不可用时回退到提示文案。
 
 import { FOODS } from '@/data/foods';
 import { EXERCISES } from '@/data/exercises';
@@ -14,6 +15,27 @@ export interface AssistantCtx {
   hasRecords: boolean;
   target: number | null;
   macros: { protein: number; fat: number; carbs: number } | null;
+}
+
+/** 回答中提及的具体食物（可一键添加到饮食记录）。
+ * 热量与营养按「整份」给出；散装食材按每 100g 一份（weight=100）。 */
+export interface AiFood {
+  name: string;
+  /** 整份热量（千卡） */
+  kcal: number;
+  /** 整份蛋白质（克） */
+  protein: number;
+  /** 整份脂肪（克） */
+  fat: number;
+  /** 整份碳水化合物（克） */
+  carbs: number;
+  /** 整份重量（克） */
+  weight: number;
+}
+
+export interface AssistantReply {
+  text: string;
+  foods?: AiFood[];
 }
 
 export const QUICK_PROMPTS = [
@@ -43,7 +65,7 @@ const hasProfile = (ctx: AssistantCtx): string | null =>
     : '我还没有你的身高体重档案，先去「我的方案」填写，我才能给出针对性建议。';
 
 const greeting = (): string =>
-  '你好呀，我是你的减脂小助手。可以问我：\n· 食物热量，如「鸡胸肉多少热量？」\n· 吃什么，如「推荐我的晚餐」\n· 今日状态，如「我今天吃超了吗？」\n· 减脂知识，如「怎么才能瘦下来？」';
+  '你好，我是你的营养学者助手。可以先问我：\n· 食物热量与营养，如「鸡胸肉多少热量？」\n· 吃什么，如「推荐我的晚餐」\n· 今日状态，如「我今天吃超了吗？」\n· 减脂知识，如「怎么才能瘦下来？」';
 
 function answerStatus(ctx: AssistantCtx): string {
   const { profile, totals, target, macros } = ctx;
@@ -113,17 +135,72 @@ function answerRecommend(text: string, ctx: AssistantCtx): string {
   return parts.join('\n');
 }
 
-function answerFood(text: string): string {
+/** 按营养成分给食物打分（满分 10 分）：热量密度、蛋白、脂肪、纤维维度 */
+function scoreFood(f: (typeof FOODS)[number]): { score: number; reason: string } {
+  let score = 5;
+  const notes: string[] = [];
+  if (f.protein >= 15) {
+    score += 1.5;
+    notes.push('蛋白质含量优秀');
+  } else if (f.protein >= 8) {
+    score += 0.8;
+    notes.push('蛋白质较充足');
+  }
+  if (f.fiber >= 5) {
+    score += 1.5;
+    notes.push('膳食纤维丰富');
+  } else if (f.fiber >= 3) {
+    score += 1;
+    notes.push('含膳食纤维');
+  }
+  if (f.fat <= 3) {
+    score += 0.5;
+    notes.push('脂肪较低');
+  } else if (f.fat > 20) {
+    score -= 1.5;
+    notes.push('脂肪偏高');
+  } else if (f.fat > 10) {
+    score -= 1;
+    notes.push('脂肪偏高');
+  }
+  if (f.kcal <= 60) {
+    score += 1;
+    notes.push('热量密度低');
+  } else if (f.kcal >= 400) {
+    score -= 1;
+    notes.push('热量密度高');
+  }
+  if (score > 9.5) score = 9.5;
+  if (score < 1.5) score = 1.5;
+  const reason = notes.slice(0, 2).join('、') || '营养结构均衡';
+  return { score: Math.round(score), reason };
+}
+
+function answerFood(text: string): AssistantReply {
   const name = foodIn(text);
-  if (!name) return '我没在内置食物库里找到它。可以换个说法，或去「食物库」搜索看看。';
+  if (!name)
+    return { text: '我没在内置食物库里找到它。可以换个说法，或去「食物库」搜索看看。' };
   const f = FOODS.find((x) => x.name === name)!;
-  return [
-    `${f.name}：每 100g ${f.kcal} 千卡`,
-    `蛋白质 ${f.protein}g · 脂肪 ${f.fat}g · 碳水 ${f.carbs}g · 膳食纤维 ${f.fiber}g`,
-    `优点：${f.pros.join('、')}`,
-    `注意：${f.cons.join('、')}`,
-    `建议：${f.advice}`,
-  ].join('\n');
+  const { score, reason } = scoreFood(f);
+  return {
+    text: [
+      `${f.name}：每 100g ${f.kcal} 千卡（蛋白质 ${f.protein}g · 脂肪 ${f.fat}g · 碳水 ${f.carbs}g · 膳食纤维 ${f.fiber}g）`,
+      `营养评分：${score}/10 分 — ${reason}`,
+      `优点：${f.pros.join('、')}`,
+      `注意：${f.cons.join('、')}`,
+      `建议：${f.advice}`,
+    ].join('\n'),
+    foods: [
+      {
+        name: f.name,
+        kcal: f.kcal,
+        protein: f.protein,
+        fat: f.fat,
+        carbs: f.carbs,
+        weight: 100,
+      },
+    ],
+  };
 }
 
 function answerCompare(text: string): string {
@@ -219,29 +296,85 @@ function answerWater(): string {
   return '一般建议每天饮水 1500-2000ml（约 6-8 杯），运动或出汗多时再加。\n判断标准：尿液呈淡黄色说明水分充足；饭前喝一杯水还有助控制食量。';
 }
 
-export function answerQuestion(q: string, ctx: AssistantCtx): string {
-  const text = q.trim();
-  if (!text) return greeting();
+const FALLBACK_PROMPT = [
+  '这个问题我暂时答不上来，我可以帮你：',
+  '· 查食物热量：如「全麦面包多少热量？」',
+  '· 对比食物：如「米饭和全麦面包哪个好」',
+  '· 推荐饮食：如「推荐我的午餐」',
+  '· 看今日状态：如「我今天吃超了吗？」',
+  '· 问减脂知识：如「怎么才能瘦下来？」',
+].join('\n');
 
-  if (/^(你好|hi|hello|嗨|在吗|在么)/i.test(text)) return greeting();
-  if (/(和|跟|与).*(哪个|对比|区别|谁好)/.test(text)) return answerCompare(text);
-  if (/(今天|今日|摄入|吃超|达标|状态|怎么样|如何了)/.test(text)) return answerStatus(ctx);
-  if (/(推荐|吃什么|吃啥|建议|安排|应该吃)/.test(text)) return answerRecommend(text, ctx);
-  if (/(蛋白|蛋白质)/.test(text)) return answerProtein(text, ctx);
-  if (/(零食|加餐|饿了|嘴馋|低卡|解馋)/.test(text)) return answerSnack();
-  if (/(跑步|跳绳|游泳|运动|消耗|锻炼|快走|骑车|椭圆机|力量)/.test(text)) return answerExercise(text, ctx);
-  if (/(喝水|饮水|水分)/.test(text)) return answerWater();
+/** 把用户档案与今日记录整理成给 AI 的上下文（仅文本摘要，不含敏感信息） */
+function buildCtxText(ctx: AssistantCtx): string {
+  const lines: string[] = [];
+  const p = ctx.profile;
+  if (p) {
+    lines.push(
+      `用户档案：${p.gender === 'male' ? '男' : '女'}，${p.age} 岁，身高 ${p.height}cm，体重 ${p.weight}kg，活动水平 ${p.activity}，减脂目标 ${p.goal}`
+    );
+  }
+  if (ctx.target) {
+    lines.push(`每日目标热量：${Math.round(ctx.target)} 千卡，蛋白质 ${ctx.macros?.protein ?? '?'}g / 脂肪 ${ctx.macros?.fat ?? '?'}g / 碳水 ${ctx.macros?.carbs ?? '?'}g`);
+  }
+  if (ctx.hasRecords) {
+    lines.push(`今日已摄入 ${Math.round(ctx.totals.kcal)} 千卡（蛋白 ${Math.round(ctx.totals.protein)}g / 脂肪 ${Math.round(ctx.totals.fat)}g / 碳水 ${Math.round(ctx.totals.carbs)}g）`);
+  } else {
+    lines.push('今日还没有饮食记录');
+  }
+  return lines.join('\n');
+}
+
+/** 本地规则答不上时，交给本地 AI 代理联网回答；失败时回退到提示文案 */
+async function answerWithAI(text: string, ctx: AssistantCtx): Promise<AssistantReply> {
+  try {
+    const r = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: text, context: buildCtxText(ctx) }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = (await r.json()) as { answer?: string; foods?: AiFood[] };
+    if (!data.answer) throw new Error('empty answer');
+    return { text: data.answer, foods: data.foods?.length ? data.foods : undefined };
+  } catch {
+    return { text: FALLBACK_PROMPT };
+  }
+}
+
+export async function answerQuestion(
+  q: string,
+  ctx: AssistantCtx
+): Promise<AssistantReply> {
+  const text = q.trim();
+  if (!text) return { text: greeting() };
+
+  // 是否与饮食/营养相关：避免「推荐一部电影」「今天天气怎么样」这类无关问题被本地规则截胡
+  const isDietRelated =
+    /吃|摄入|热量|千卡|蛋白|营养|食物|餐|记录|零食|水果|蔬菜|肉|鱼|蛋|奶|喝|状态|早餐|午餐|晚餐|加餐/.test(
+      text
+    );
+
+  if (/^(你好|hi|hello|嗨|在吗|在么)/i.test(text)) return { text: greeting() };
+  if (/(和|跟|与).*(哪个|对比|区别|谁好)/.test(text) && isDietRelated)
+    return { text: answerCompare(text) };
+  if (
+    /吃超|达标/.test(text) ||
+    (isDietRelated && /(今天|今日|摄入|状态|怎么样|如何了)/.test(text))
+  )
+    return { text: answerStatus(ctx) };
+  if (/(推荐|吃什么|吃啥|建议|安排|应该吃)/.test(text) && isDietRelated)
+    return { text: answerRecommend(text, ctx) };
+  if (/(蛋白|蛋白质)/.test(text)) return { text: answerProtein(text, ctx) };
+  if (/(零食|加餐|饿了|嘴馋|低卡|解馋)/.test(text)) return { text: answerSnack() };
+  if (/(跑步|跳绳|游泳|运动|消耗|锻炼|快走|骑车|椭圆机|力量)/.test(text))
+    return { text: answerExercise(text, ctx) };
+  if (/(喝水|饮水|水分)/.test(text)) return { text: answerWater() };
   if (/(怎么减肥|如何减肥|怎么瘦|瘦下来|减肥方法|基础代谢|BMR|TDEE|代谢|热量缺口|缺口|平台期|节食|断食|轻断食)/.test(text))
-    return answerKnowledge(text, ctx);
+    return { text: answerKnowledge(text, ctx) };
   if (/(热量|千卡|卡路里|高不高|能减肥|适合减肥|营养|优点|缺点)/.test(text) && foodIn(text))
     return answerFood(text);
 
-  return [
-    '这个问题我暂时答不上来，我可以帮你：',
-    '· 查食物热量：如「全麦面包多少热量？」',
-    '· 对比食物：如「米饭和全麦面包哪个好」',
-    '· 推荐饮食：如「推荐我的午餐」',
-    '· 看今日状态：如「我今天吃超了吗？」',
-    '· 问减脂知识：如「怎么才能瘦下来？」',
-  ].join('\n');
+  // 本地规则没有命中 → 交给 AI 联网回答
+  return answerWithAI(text, ctx);
 }

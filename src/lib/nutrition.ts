@@ -26,13 +26,29 @@ export const nutrientsFor = (food: IFood, grams: number): INutrients => {
   };
 };
 
+/** 单条记录的营养：优先用记录时留存的每 100g 快照，缺失时按食物库兜底 */
+export const nutrientsOfRecord = (item: IRecordItem): INutrients | null => {
+  const f = item.grams / 100;
+  if (item.kcal100 != null) {
+    return {
+      kcal: Math.round(item.kcal100 * f),
+      protein: round1((item.protein100 ?? 0) * f),
+      fat: round1((item.fat100 ?? 0) * f),
+      carbs: round1((item.carbs100 ?? 0) * f),
+      fiber: 0,
+    };
+  }
+  const food = foodById(item.foodId);
+  if (!food) return null;
+  return nutrientsFor(food, item.grams);
+};
+
 /** 汇总一组饮食记录项的营养 */
 export const sumRecordItems = (items: IRecordItem[]): INutrients => {
   const total: INutrients = { kcal: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 };
   for (const item of items) {
-    const food = foodById(item.foodId);
-    if (!food) continue;
-    const n = nutrientsFor(food, item.grams);
+    const n = nutrientsOfRecord(item);
+    if (!n) continue;
     total.kcal += n.kcal;
     total.protein += n.protein;
     total.fat += n.fat;
@@ -40,6 +56,11 @@ export const sumRecordItems = (items: IRecordItem[]): INutrients => {
     total.fiber += n.fiber;
   }
   total.kcal = Math.round(total.kcal);
+  // 各营养累加后可能出现浮点尾巴（如 80.39999999999999），统一取整到 1 位小数
+  total.protein = round1(total.protein);
+  total.fat = round1(total.fat);
+  total.carbs = round1(total.carbs);
+  total.fiber = round1(total.fiber);
   return total;
 };
 
