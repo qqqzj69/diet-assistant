@@ -1,105 +1,91 @@
-# 项目技术规范
+# 轻食计 · 减肥饮食助手
+
+> 一个帮你记录饮食、计算热量与营养、并提供个性化建议的前端 Web 应用。
+> 内置 112 种常见食物数据，全部数据保存在浏览器本地，无需注册登录、无需后端即可完整使用。
+
+在线预览：*（部署后补充链接）*
+
+---
+
+## 界面预览
+
+| 今日概况 | 食物库 |
+| --- | --- |
+| ![今日概况](docs/screenshots/01-dashboard.png) | ![食物库](docs/screenshots/02-foods.png) |
+
+| 智能助手 | 饮食记录 |
+| --- | --- |
+| ![智能助手](docs/screenshots/03-assistant.png) | ![饮食记录](docs/screenshots/04-records.png) |
+
+---
+
+## 功能特性
+
+- **今日概况**：热量环形进度、蛋白质/脂肪/碳水/纤维达标情况、按餐次汇总，首页一键快速记录
+- **食物库**：112 种内置食物（按主食/肉蛋/水产/蔬菜/水果等分类），支持搜索、自定义添加、常用食物自动排前
+- **饮食记录**：按日期、按四餐（早/午/晚/加餐）记录，自动汇总全天热量与营养，支持修改与删除
+- **智能助手**：对话式问答，内置规则引擎可直接回答热量查询、食物对比、饮食推荐、运动消耗、减脂知识；可接入大模型（DeepSeek）扩展回答范围，回答中提到的食物可一键添加进记录
+- **个性化方案**：填写身高体重/性别/活动水平，自动计算 BMR、TDEE、目标热量与三大营养素
+- **形象化反馈**：随身高体重与饮食状态变化的虚拟角色（4 种状态 × 男女两种形象）
+- **响应式**：桌面端侧边栏导航，移动端自动切换抽屉菜单与全宽按钮，手机可正常使用
+
+---
 
 ## 技术栈
 
-- 前端: React 19 + TypeScript
-- 样式: Tailwind CSS v4
-- UI 组件: shadcn/ui `import { Button } from "@/components/ui/button";`
-- 图标: lucide-react `import { SearchIcon } from "lucide-react";`
-- 图表: echarts-for-react `import ReactECharts from "echarts-for-react";`
-- 动画: framer-motion `import { motion } from "framer-motion";`
-- 路由: react-router-dom `import { Link, useNavigate } from "react-router-dom";`
+| 分类 | 技术 |
+| --- | --- |
+| 框架 | React 19 + TypeScript |
+| 构建 | Vite |
+| 样式 | Tailwind CSS v4 |
+| UI 组件 | shadcn/ui + lucide-react 图标 |
+| 路由 | react-router-dom（HashRouter） |
+| 数据存储 | 浏览器 localStorage |
+| 后端（可选） | Express 代理层，用于接入大模型 API |
 
 ---
 
-## 目录结构
+## 项目结构
 
 ```
 src/
-├── index.tsx            # 入口（勿修改）
-├── app.tsx              # 路由配置（仅在 <Routes> 内增删 <Route>）
-├── index.css            # 全局样式 + 主题变量
-├── components/          # 基础 UI 组件（禁止存放业务组件）
-│   ├── layout.tsx       # 全局布局容器（含 <Outlet />）
-│   └── ui/              # shadcn/ui 内置组件（勿修改）
-├── pages/               # 页面模块（每个页面一个目录）
-│   ├── <PageName>/      # 页面目录示例
-│   │   ├── PageName.tsx        # 页面入口文件与目录同名
-│   │   └── components/         # 页面专属组件
-│   └── NotFoundPage/
-│       └── NotFoundPage.tsx
-├── hooks/               # 自定义 Hooks
-└── lib/                 # 工具函数（cn() 等）
-
-public/                  # 静态资源（dev server 原样服务；构建后随 dist/output 同源部署）
+├── pages/            # 六个页面：今日概况/食物库/饮食记录/智能助手/方案/运动
+├── components/       # 通用组件（对话框、布局、角色图、背景特效）
+├── data/             # 内置食物数据、运动数据、类型定义
+├── hooks/            # localStorage 状态管理（档案/记录/角色/自定义食物）
+├── lib/              # 营养计算（BMR/TDEE/营养素目标）、问答规则引擎
+└── assets/           # 角色形象素材
 ```
 
 ---
 
-## 模板初始状态
+## 本地运行
 
-- `app.tsx` 首页路由指向 `pages/HomePage`（占位欢迎页）
-- 开发时将 `HomePage` 替换为业务首页，或在 `pages/` 下创建新页面并调整 `index` 路由
-- `layout.tsx` 为空壳容器（仅 `<Outlet />`），需根据需求实现导航和布局
+```bash
+# 安装依赖
+npm install
 
----
+# 启动开发（前端 + 可选 AI 后端）
+npm run dev:all
 
-## 禁止修改的文件
-
-| 文件 | 原因 |
-|------|------|
-| `src/index.tsx` | Provider 层级 + 样式引入，由模板管理 |
-| `src/components/ui/*` | shadcn/ui 内置组件，版本锁定 |
-
----
-
-## 文件放置规则
-
-| 内容类型 | 放置位置 |
-|---------|---------|
-| 新页面 | `src/pages/<PageName>/PageName.tsx` |
-| 页面专属组件 | `src/pages/<PageName>/components/` |
-| 自定义 Hooks | `src/hooks/` |
-| 工具函数 | `src/lib/` |
-| 静态数据文件 | `public/data/` |
-| 静态图片 | `public/images/` |
-
----
-
-## 导入路径
-
-```typescript
-// @/ 别名 → src/
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
-
-// public/ 下的静态资源通过 URL 引用（dev 与线上同源）
-// <img src="/images/hero.png" />  fetch("/data/config.json")
+# 构建生产版本
+npm run build
 ```
 
----
-
-## 路由配置
-
-- 新增页面需在 `src/app.tsx` 的 `<Routes>` 内注册 `<Route>`
-- `BrowserRouter` 已在 `index.tsx` 中配置，`app.tsx` 中**禁止**再包裹 Router
+> 不启动 AI 后端也能完整使用：智能助手会自动降级为内置规则回答。
 
 ---
 
-## 主题变量
+## 技术亮点
 
-主题色定义在 `src/index.css`，通过 `:root` CSS 变量 + `@theme inline` 注册到 Tailwind。
+1. **纯前端可用**：核心功能不依赖后端，数据全部存于 localStorage，构建产物可打包成单个 HTML 文件离线使用
+2. **营养计算体系**：基于 Mifflin-St Jeor 公式计算 BMR/TDEE，再按减脂目标推算每日热量与三大营养素比例
+3. **双模式智能问答**：本地规则引擎保证离线可用与可控回答边界；联网时经后端代理调用大模型扩展能力，且 API Key 不暴露在前端
+4. **状态化 UI**：虚拟角色随 BMI 与当日饱腹度动态切换形象与表情，提升产品的反馈感
+5. **响应式布局**：一套代码同时适配桌面侧边栏与移动端抽屉导航
 
-| 用途 | Tailwind 类 | CSS 变量 |
-|------|------------|----------|
-| 页面背景 | `bg-background` | `--background` |
-| 主文本 | `text-foreground` | `--foreground` |
-| 卡片背景 | `bg-card` | `--card` |
-| 次要文本 | `text-muted-foreground` | `--muted-foreground` |
-| 主色 | `bg-primary` / `text-primary` | `--primary` |
-| 强调色 | `bg-accent` | `--accent` |
-| 边框 | `border-border` | `--border` |
-| 危险色 | `text-destructive` | `--destructive` |
-| 图表色 | `bg-chart-1` ~ `bg-chart-5` | `--chart-1` ~ `--chart-5` |
+---
 
-HSL 格式使用**空格分隔**：`--primary: hsl(150 60% 40%);`
+## 说明
+
+- 本项目为个人学习/作品集项目，食物营养数据为通用参考值，不构成医疗建议
