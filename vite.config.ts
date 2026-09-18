@@ -3,6 +3,7 @@ import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { viteSingleFile } from 'vite-plugin-singlefile';
 
 // ── 妙搭部署协议（参考《妙搭应用构建产物规范》）─────────────────────────
 // 构建期环境变量（托管构建时由部署链路自动注入；本地开发不需要，缺省回退）：
@@ -100,7 +101,8 @@ function collectRoutePaths(srcDir: string): string[] {
 }
 
 export default defineConfig(({ command }) => ({
-  plugins: [react(), tailwindcss(), miaodaOutputPlugin(), sparkJsonPlugin()],
+  // 单文件构建：viteSingleFile 把 JS/CSS/图片全部内联进 index.html（仅 build 生效）
+  plugins: [react(), tailwindcss(), viteSingleFile(), miaodaOutputPlugin(), sparkJsonPlugin()],
   // 生产构建：JS/CSS 引用带 CDN 前缀（无 CDN 时退回 base path）；dev 恒为 /
   base: command === 'build' ? cdnPrefix || basePath : '/',
   define: {

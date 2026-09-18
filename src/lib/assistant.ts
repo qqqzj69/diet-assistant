@@ -338,7 +338,9 @@ async function answerWithAI(text: string, ctx: AssistantCtx): Promise<AssistantR
     if (!data.answer) throw new Error('empty answer');
     return { text: data.answer, foods: data.foods?.length ? data.foods : undefined };
   } catch {
-    return { text: FALLBACK_PROMPT };
+    // 联网 AI 不可用（如单文件 HTML 离线打开）：优先用内置食物库兜底，再给引导提示
+    const local = foodIn(text) ? answerFood(text) : null;
+    return local ?? { text: FALLBACK_PROMPT };
   }
 }
 
